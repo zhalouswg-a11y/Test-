@@ -79,6 +79,7 @@
             border-radius: 12px;
             line-height: 1.4;
         }
+        /* Les classes gemma et mistral sont utilisées pour les couleurs */
         .gemma {
             align-self: flex-start;
             background-color: #89b4fa;
@@ -90,6 +91,13 @@
             background-color: #a6e3a1;
             color: #11111b;
             border-bottom-right-radius: 2px;
+        }
+        /* Classe spéciale pour l'utilisateur */
+        .utilisateur {
+            align-self: center;
+            background-color: #f5c2e7;
+            color: #11111b;
+            text-align: center;
         }
         .system-msg {
             align-self: center;
@@ -108,7 +116,7 @@
     <div class="config-panel">
         <input type="password" id="gemmaKey" placeholder="Clé API Google (pour Gemma 3)">
         <input type="password" id="mistralKey" placeholder="Clé API Mistral">
-        <input type="text" id="initialPrompt" placeholder="Sujet de conversation (ex: 'Prouve-moi que tu es plus intelligent que l'autre IA.')" value="Bonjour l'ami ! Quel est selon toi le plus grand défi de l'intelligence artificielle aujourd'hui ?">
+        <input type="text" id="initialPrompt" placeholder="Sujet de conversation" value="Bonjour l'ami ! Quel est selon toi le plus grand défi de l'intelligence artificielle aujourd'hui ?">
         <div class="controls">
             <button id="startBtn" onclick="startConversation()">Lancer le débat</button>
             <button id="stopBtn" onclick="stopConversation()" disabled>Arrêter</button>
@@ -132,7 +140,10 @@
     function addMessage(sender, text) {
         const msgDiv = document.createElement('div');
         msgDiv.classList.add('message');
-        msgDiv.classList.add(sender.toLowerCase());
+        
+        // LA CORRECTION EST ICI : On extrait le premier mot ("gemma", "mistral", ou "utilisateur")
+        const cssClass = sender.toLowerCase().split(' ')[0];
+        msgDiv.classList.add(cssClass); 
         
         const nameTag = document.createElement('div');
         nameTag.classList.add('name-tag');
@@ -168,11 +179,11 @@
             body: JSON.stringify({
                 model: "mistral-small-latest",
                 messages: mistralHistory,
-                max_tokens: 150 // Garde les réponses courtes pour le dynamisme
+                max_tokens: 150 
             })
         });
 
-        if (!response.ok) throw new Error("Erreur avec l'API Mistral");
+        if (!response.ok) throw new Error("Erreur avec l'API Mistral (" + response.status + ")");
         
         const data = await response.json();
         const reply = data.choices[0].message.content;
@@ -184,7 +195,6 @@
         const apiKey = document.getElementById('gemmaKey').value;
         gemmaHistory.push({ "role": "user", "parts": [{ "text": prompt }] });
 
-        // URL format pour l'API Google Gemini/Gemma
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${apiKey}`;
 
         const response = await fetch(url, {
@@ -198,7 +208,7 @@
             })
         });
 
-        if (!response.ok) throw new Error("Erreur avec l'API Gemma");
+        if (!response.ok) throw new Error("Erreur avec l'API Gemma (" + response.status + ")");
 
         const data = await response.json();
         const reply = data.candidates[0].content.parts[0].text;
@@ -219,33 +229,26 @@
         isChatting = true;
         startBtn.disabled = true;
         stopBtn.disabled = false;
-        chatBox.innerHTML = ''; // Clear chat
+        chatBox.innerHTML = ''; 
 
         mistralHistory = [];
         gemmaHistory = [];
 
         addSystemMessage("Démarrage de la conversation...");
-        
-        // On simule que l'utilisateur lance le sujet à Gemma en premier
         addMessage("Utilisateur", currentPrompt);
 
         try {
             while (isChatting) {
-                // Tour de Gemma
                 addSystemMessage("Gemma réfléchit...");
                 const gemmaReply = await callGemma(currentPrompt);
                 if (!isChatting) break;
                 
-                // Effacer les messages systèmes
                 document.querySelectorAll('.system-msg').forEach(e => e.remove());
                 addMessage("Gemma 3", gemmaReply);
 
-                // Petite pause pour la lisibilité
                 await new Promise(r => setTimeout(r, 2000));
-                
                 if (!isChatting) break;
 
-                // Tour de Mistral
                 addSystemMessage("Mistral réfléchit...");
                 const mistralReply = await callMistral(gemmaReply);
                 if (!isChatting) break;
@@ -253,12 +256,12 @@
                 document.querySelectorAll('.system-msg').forEach(e => e.remove());
                 addMessage("Mistral Small", mistralReply);
                 
-                // La réponse de Mistral devient le prompt de Gemma pour le prochain tour
                 currentPrompt = mistralReply;
 
                 await new Promise(r => setTimeout(r, 2000));
             }
         } catch (error) {
+            document.querySelectorAll('.system-msg').forEach(e => e.remove());
             addSystemMessage("Erreur : " + error.message);
             stopConversation();
         }
@@ -268,7 +271,7 @@
         isChatting = false;
         startBtn.disabled = false;
         stopBtn.disabled = true;
-        addSystemMessage("Conversation arrêtée par l'utilisateur.");
+        addSystemMessage("Conversation arrêtée.");
     }
 </script>
 
